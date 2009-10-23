@@ -8,45 +8,14 @@
 		<script src="jquery-go_board.js" type="text/javascript" charset="utf-8"></script>
 		<script type="text/javascript" charset="utf-8">
 		
-		GoBoard = function(id, options) {
-			var t = this;
-			
+		GoBoard = function(options) {
 			//start options
 			this.options = $.extend({
-				board_level: "professional",
-				board_size: 400,
-				board_margin: null
+				board_level: "professional"
 			}, options || {});
-			
-			//start element vars
-			this.el = document.getElementById(id);
-			this.ctx = this.el.getContext("2d");
-			
-			this.el.width  = this.options.board_size;
-			this.el.height = this.options.board_size;
-			
-			$(this.el).click(function(e) {t.handle_click(e)});
-			$(this.el).mousemove(function(e) {t.handle_mousemove(e)});
-			
-			//start game vars
-			this.pieces = this.create_empty_grid(19);
-			this.board  = GoBoard.boards[this.options.board_level];
-			this.current_player = "black";
 			
 			//reset the board
 			this.reset();
-		};
-		
-		GoBoard.players = {
-			black: {
-				color: '#000',
-				preview: 'rgba(0, 0, 0, .5)'
-			},
-			
-			white: {
-				color: '#FFF',
-				preview: 'rgba(255, 255, 255, .5)'
-			}
 		};
 		
 		GoBoard.boards = {
@@ -94,9 +63,52 @@
 			},
 			
 			reset: function() {
-				this.draw();
+				//start game vars
+				this.board  = GoBoard.boards[this.options.board_level];
+				this.pieces = this.create_empty_grid(this.board.size);
+				this.current_player = "black";
+			}
+		}
+		
+		GoCanvas = function(board, id, options) {
+			this.board = board;
+			
+			var t = this;
+			
+			//start options
+			this.options = $.extend({
+				board_level: "professional",
+				board_size: 400,
+				board_margin: null
+			}, options || {});
+			
+			//start element vars
+			this.el = document.getElementById(id);
+			this.ctx = this.el.getContext("2d");
+			
+			this.el.width  = this.options.board_size;
+			this.el.height = this.options.board_size;
+			
+			$(this.el).click(function(e) {t.handle_click(e)});
+			$(this.el).mousemove(function(e) {t.handle_mousemove(e)});
+			
+			//draw the board
+			this.draw();
+		};
+		
+		GoCanvas.players = {
+			black: {
+				color: '#000',
+				preview: 'rgba(0, 0, 0, .5)'
 			},
 			
+			white: {
+				color: '#FFF',
+				preview: 'rgba(255, 255, 255, .5)'
+			}
+		};
+		
+		GoCanvas.prototype = {
 			draw: function() {
 				//draw background
 				this.ctx.fillStyle = "#DCB35C";
@@ -191,7 +203,7 @@
 			},
 			
 			player: function() {
-				return GoBoard.players[this.current_player];
+				return GoCanvas.players[this.current_player];
 			},
 			
 			handle_click: function(e) {

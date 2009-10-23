@@ -1,0 +1,251 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+		<title>Javascript Go</title>
+		<script src="jquery-1.3.2.min.js" type="text/javascript" charset="utf-8"></script>
+		<script src="jquery-go_board.js" type="text/javascript" charset="utf-8"></script>
+		<script type="text/javascript" charset="utf-8">
+		
+		GoBoard = function(id, options) {
+			var t = this;
+			
+			//start options
+			this.options = $.extend({
+				board_level: "professional",
+				board_size: 400,
+				board_margin: null
+			}, options || {});
+			
+			//start element vars
+			this.el = document.getElementById(id);
+			this.ctx = this.el.getContext("2d");
+			
+			this.el.width  = this.options.board_size;
+			this.el.height = this.options.board_size;
+			
+			$(this.el).click(function(e) {t.handle_click(e)});
+			$(this.el).mousemove(function(e) {t.handle_mousemove(e)});
+			
+			//start game vars
+			this.pieces = this.create_empty_grid(19);
+			this.board  = GoBoard.boards[this.options.board_level];
+			this.current_player = "black";
+			
+			//reset the board
+			this.reset();
+		};
+		
+		GoBoard.players = {
+			black: {
+				color: '#000',
+				preview: 'rgba(0, 0, 0, .5)'
+			},
+			
+			white: {
+				color: '#FFF',
+				preview: 'rgba(255, 255, 255, .5)'
+			}
+		};
+		
+		GoBoard.boards = {
+			beginner: {
+				size: 9,
+				star_points: [
+					[2, 2], [6, 2],
+					[4, 4],
+					[2, 6], [6, 6]
+				]
+			},
+			
+			intermediate: {
+				size: 13,
+				star_points: [
+					[3, 3], [9, 3],
+					[6, 6],
+					[3, 9], [9, 9]
+				]
+			},
+			
+			professional: {
+				size: 19,
+				star_points: [
+					[3, 3],  [9, 3],  [15, 3],
+					[3, 9],  [9, 9],  [15, 9],
+					[3, 15], [9, 15], [15, 15]
+				]
+			}
+		};
+		
+		GoBoard.prototype = {
+			create_empty_grid: function(size) {
+				var grid = [];
+				
+				for (var y = 0; y < size; y++) {
+					grid[y] = [];
+					
+					for (var x = 0; x < size; x++) {
+						grid[y][x] = null;
+					}
+				}
+				
+				return grid;
+			},
+			
+			reset: function() {
+				this.draw();
+			},
+			
+			draw: function() {
+				//draw background
+				this.ctx.fillStyle = "#DCB35C";
+				this.ctx.fillRect(0, 0, this.options.board_size, this.options.board_size);
+				
+				//draw board lines
+				var board_margin = this.calculate_board_margin();
+				var spacing = this.calculate_spacing();
+				
+				this.ctx.strokeStyle = "#000";
+				
+				for (var i = 0; i < this.board.size; i++) {
+					var delta = board_margin + (spacing * i);
+					
+					this.ctx.beginPath();
+					this.ctx.moveTo(board_margin, delta);
+					this.ctx.lineTo(this.options.board_size - board_margin, delta);
+					this.ctx.stroke();
+					
+					this.ctx.beginPath();
+					this.ctx.moveTo(delta, board_margin);
+					this.ctx.lineTo(delta, this.options.board_size - board_margin);
+					this.ctx.stroke();
+				}
+				
+				//draw board stars
+				var star_radio = this.options.board_size / (this.board.size - 1) / 8;
+				
+				this.ctx.fillStyle = "#000";
+				
+				for (var i = 0; i < this.board.star_points.length; i++) {
+					var sp = this.board.star_points[i];
+					var pos = this.calculate_position(sp[0], sp[1]);
+					
+					this.ctx.beginPath();
+					this.ctx.arc(pos[0], pos[1], star_radio, 0, Math.PI*2, true);
+					this.ctx.fill();
+				}
+				
+				//draw pieces
+				var piece_ratio = spacing / 2;
+				
+				for (var y = 0; y < this.pieces.length; y++) {
+					for (var x = 0; x < this.pieces[y].length; x++) {
+						var p = this.pieces[y][x];
+						
+						if (p) {
+							var pos = this.calculate_position(x, y);
+							
+							this.ctx.fillStyle = p.black ? "#000" : "#FFF";
+							this.ctx.beginPath();
+							this.ctx.arc(pos[0], pos[1], piece_ratio, 0, Math.PI*2, true);
+							this.ctx.fill();
+						}
+					}
+				}
+			},
+			
+			calculate_spacing: function() {
+				return (this.el.width - this.calculate_board_margin() * 2) / (this.board.size - 1);
+			},
+			
+			calculate_position: function(x, y) {
+				var board_margin = this.calculate_board_margin();
+				var spacing = this.calculate_spacing();
+				
+				return [x * spacing + board_margin, y * spacing + board_margin]
+			},
+			
+			calculate_board_margin: function() {
+				if (this.options.board_margin) {
+					return this.options.board_margin;
+				} else {
+					var o = this.options;
+					
+					return o.board_size / (this.board.size - 1) / 2;
+				}
+			},
+			
+			calculate_near_from_mouse: function(e) {
+				var distance = $(this.el).offset();
+				var x = e.pageX - distance.left;
+				var y = e.pageY - distance.top;
+				var margin = this.calculate_board_margin();
+				var spacing = this.calculate_spacing();
+				
+				return [Math.round((x - margin) / spacing), Math.round((y - margin) / spacing)];
+			},
+			
+			change_player: function() {
+				this.current_player = this.current_player == 'black' ? 'white' : 'black';
+			},
+			
+			player: function() {
+				return GoBoard.players[this.current_player];
+			},
+			
+			handle_click: function(e) {
+				var point = this.calculate_near_from_mouse(e);
+				
+				if (this.pieces[point[1]][point[0]]) return;
+				
+				this.pieces[point[1]][point[0]] = {black: this.current_player == 'black' ? true : false};
+				this.draw();
+				
+				this.change_player();
+			},
+			
+			handle_mousemove: function(e) {
+				var point = this.calculate_near_from_mouse(e);
+				var piece_ratio = this.calculate_spacing() / 2;
+				
+				if (this.ghost_mark) {
+					if (this.ghost_mark.x == point[0] && this.ghost_mark.y == point[1]) {
+						return;
+					}
+					
+					if (this.pieces[point[1]][point[0]] != null) {
+						this.draw();
+						this.ghost_mark = null;
+						return;
+					}
+				} else {
+					if (this.pieces[point[1]][point[0]] != null) return;
+				}
+				
+				var pos = this.calculate_position(point[0], point[1]);
+				this.draw();
+				
+				this.ctx.fillStyle = this.player().preview;
+				this.ctx.beginPath();
+				this.ctx.arc(pos[0], pos[1], piece_ratio, 0, Math.PI*2, true);
+				this.ctx.fill();
+				
+				this.ghost_mark = {x: point[0], y: point[1]};
+			}
+		};
+		
+		$(function() {
+			var board = new GoBoard("go_board", {board_level: 'intermediate'});
+			
+			board.draw();
+		});
+		
+		</script>
+	</head>
+	<body>
+		<h1>Javascript Go</h1>
+		<h2>This is a Go Board game, implemented in Javascript</h2>
+		<canvas id="go_board" width="300" height="300"></canvas>
+	</body>
+</html>
